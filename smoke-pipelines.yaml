@@ -1,0 +1,134 @@
+name: 'Journey_$(executionTags)_Execution_$(Date:yyyyMMdd)$(Rev:.r)'
+appendCommitMessageToRunName: false
+
+parameters:
+  - name: environment
+    displayName: Test Environment
+    type: string
+    default: TST
+    values:
+      - TST
+      - STA
+
+  - name: executionTag
+    displayName: Execution Tag
+    type: string
+    default: 'Sanity'
+    values:
+      - 'Sanity'
+      - 'test911'
+      - 'JourneyReg'
+      - 'cloudReg'
+      - 'csom'
+
+  - name: executionConf
+    displayName: Execution Configuration
+    type: string
+    default: 'bstack_edge'
+    values:
+      - 'bstack_chrome'
+      - 'bstack_edge'
+      - 'bstack_safari'
+
+trigger: none
+
+pool: 'mod-abc-java-pool-001'
+
+schedules:
+  - cron: '30 16 * * *'
+    displayName: Journey End To End Sanity Pipeline
+    branches:
+      include:
+        - branchName
+    always: true  
+
+  - cron: '45 20 * * 5'
+    displayName: Journey End To End Regression Pipeline
+    branches:
+      include:
+        - obrnahcn 
+    always: true
+
+variables:
+  - group: AppBuildCommons
+  - ${{ if eq(variables['Build.CronSchedule.DisplayName'], 'Journey End To End Sanity Pipeline') }}:
+      - name: executionTags
+        value: 'Sanity'
+
+  - ${{ if eq(variables['Build.CronSchedule.DisplayName'], 'Journey End To End Regression Pipeline') }}:
+      - name: executionTags
+        value: 'JourneyReg'
+  
+# Fallback for manual runs
+  - ${{ if ne(variables['Build.Reason'], 'Schedule') }}:
+      - name: executionTags
+        value: ${{ parameters.executionTag }}      
+
+stages:
+  - stage: Saniltu
+    jobs:
+      - job: RunTest
+        timeoutInMinutes: 600
+        variables:
+          - group: AppBuildCommons
+        displayName: Run FE Smoke Tests
+        steps:
+          - script: |
+              source /etc/profile.d/nvm.sh
+              source ~/.bashrc
+              nvm install 22
+              nvm use 22
+              echo "Current directory:"
+              pwd
+              echo "Changing directory to folderName"
+              cd foldernmae
+              echo "Current directory:"
+              pwd
+              yarn config set registry https://registry.npmjs.org/
+              yarn cache clean
+              yarn install
+              echo "Current directory:"
+              pwd
+              echo "show ls -ltr :"
+              ls -ltr
+              echo "Current working directory:"
+              echo "$(System.DefaultWorkingDirectory)"
+              echo "executing tests----"
+              ENV=${{ parameters.environment }} npm run ${{ parameters.executionConf }} @$(executionTags)
+            env:
+              ARTIFACT_TOKEN_BASE64: $(ARTIFACT_TOKEN_BASE64)
+            displayName: 'Run tests'
+            continueOnError: true # This allows the pipeline to continue even if tests fail
+          - script: |
+              cd "$(System.DefaultWorkingDirectory)/folderName"
+              echo "Generating Cucumber report..."
+              npm run report || echo "Report generation failed"
+            env:
+              ARTIFACT_TOKEN_BASE64: $(ARTIFACT_TOKEN_BASE64)
+            condition: always()
+            displayName: 'Generate Cucumber Report'
+
+
+          - task: PublishCucumberReport@1
+            inputs:
+              displayName: 'Publish Cucumber Report'
+              jsonDir: '$(System.DefaultWorkingDirectory)/folderName/reports/json'
+              outputPath: '$(System.DefaultWorkingDirectory)/folderName/reports/json'
+              name: 'Journey Tests'
+              title: report Title
+              reportSuiteAsScenarios: true
+            condition: always()
+
+          - task: PublishHtmlReport@1
+            inputs:
+              tabName: 'Cucumber Report'
+              htmlType: 'genericHTML'
+              reportDir: '$(System.DefaultWorkingDirectory)/folderName/reports/cucumber_report.html'
+              reportTitle: 'My Application Test HTML Report'
+              indexFile: 'cucumber_report.html'
+            condition: always()
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/folderName/reports
+              artifactName: Latest HTML Report

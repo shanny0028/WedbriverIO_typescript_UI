@@ -1,0 +1,19 @@
+{
+    "no-empty-file": "on",
+    "no-unnamed-features": "on",
+    "no-unnamed-scenarios": "on",
+    "no-trailing-spaces": "on",
+    "no-unused-variables": "on",
+    "no-homogenous-tags": "on",
+    "no-scenario-outlines-without-examples":"on",
+    "one-space-between-tags":"on",
+    "no-empty-background":"on",
+    "no-dupe-scenario-names": "on",
+    "no-dupe-feature-names": "on",
+    "no-partially-commented-tag-lines": "on",
+    "no-restricted-tags": ["on", {"tags": ["@ignore", "@wip"]}],
+    "no-superfluous-tags": "on",
+    "no-duplicate-tags":"on",
+    "no-examples-in-scenarios":"on",
+    "no-multiple-empty-lines":"on"
+}
